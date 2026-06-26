@@ -5,9 +5,6 @@ satellite imagery, and geomagnetic activity — in a single self-contained HTML 
 No build step, no backend, no API keys. A dark ops-center interface that runs in any
 modern browser.
 
-> _Screenshot goes here — drop a `screenshot.png` in the repo and reference it:_
-> `![TERRANOVA](screenshot.png)`
-
 ## Panels
 
 - **CH-01 · ADS-B** — Live aircraft within a configurable radius (default 250 nm
