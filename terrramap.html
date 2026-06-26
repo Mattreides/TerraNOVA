@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERRANOVA // Geospatial Intelligence Display</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070f; --panel:#070b17; --border:#0c2240; --border2:#0e2d52;
+  --accent:#00c9f5; --accent2:#00ffaa; --warn:#ff7040; --text:#6bbbd6;
+  --dim:#254060; --dim2:#1a3050;
+  --header:52px; --label:34px; --footer:24px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;overflow:hidden;}
+
+/* ── HEADER ── */
+#header{height:var(--header);background:linear-gradient(180deg,#060b18,#050810);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;position:relative;z-index:5000;}
+.logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:17px;letter-spacing:5px;color:var(--accent);text-shadow:0 0 20px rgba(0,201,245,.4);white-space:nowrap;margin-right:4px;}
+.logo em{color:var(--accent2);font-style:normal;}
+.subtitle{font-size:8px;color:var(--dim2);letter-spacing:2px;margin-left:4px;margin-right:12px;}
+.hd{width:1px;height:28px;background:var(--border2);margin:0 14px;flex-shrink:0;}
+.statuses{display:flex;gap:20px;flex:1;overflow:hidden;}
+.stat{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--accent2);flex-shrink:0;animation:dotpulse 2.4s ease-in-out infinite;}
+.dot.amber{background:#ffd040;}
+.dot.red{background:var(--warn);}
+.dot.off{background:var(--dim);animation:none;}
+@keyframes dotpulse{0%,100%{opacity:.4;}50%{opacity:1;}}
+.clock{font-size:12px;color:var(--accent2);letter-spacing:2px;white-space:nowrap;}
+
+/* ── GRID ── */
+#grid{height:calc(100% - var(--header) - var(--footer));display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--border);}
+.mpanel{position:relative;background:var(--panel);overflow:hidden;}
+.plabel{position:absolute;top:0;left:0;right:0;height:var(--label);background:linear-gradient(180deg,rgba(6,11,24,.95),rgba(6,11,24,.55));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 12px;z-index:1000;pointer-events:none;}
+.plabel .minibtn,.plabel button{pointer-events:auto;}
+.pid{font-family:'Orbitron',sans-serif;font-weight:600;font-size:10px;color:var(--accent);letter-spacing:2px;}
+.pname{font-size:11px;color:var(--text);letter-spacing:1px;text-transform:uppercase;}
+.pstat{font-size:10px;color:var(--dim);letter-spacing:1px;margin-left:auto;}
+.minibtn,.wxbtn{background:rgba(0,201,245,.08);border:1px solid var(--border2);color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 8px;cursor:pointer;text-transform:uppercase;transition:.15s;}
+.minibtn:hover,.wxbtn:hover{background:rgba(0,201,245,.18);}
+.wxbtn.on{background:var(--accent);color:#04070f;}
+.mc{position:absolute;inset:0;top:var(--label);background:#04070f;}
+.leaflet-container{background:#04070f !important;}
+.vignette{position:absolute;inset:0;pointer-events:none;z-index:900;box-shadow:inset 0 0 80px rgba(0,0,0,.55);}
+.c{position:absolute;width:14px;height:14px;border:1px solid var(--accent);opacity:.5;z-index:950;pointer-events:none;}
+.c.tl{top:var(--label);left:0;border-right:0;border-bottom:0;margin:6px;}
+.c.tr{top:var(--label);right:0;border-left:0;border-bottom:0;margin:6px;}
+.c.bl{bottom:0;left:0;border-right:0;border-top:0;margin:6px;}
+.c.br{bottom:0;right:0;border-left:0;border-top:0;margin:6px;}
+.ibadge{position:absolute;bottom:6px;left:6px;font-size:8px;color:var(--dim);letter-spacing:1px;background:rgba(4,7,15,.7);padding:2px 6px;border:1px solid var(--border);z-index:950;pointer-events:none;}
+
+/* ── WX controls ── */
+#wx-controls{position:absolute;bottom:6px;right:6px;display:flex;align-items:center;gap:4px;z-index:960;}
+#frm{font-size:8px;color:var(--accent2);letter-spacing:1px;margin-left:4px;}
+#wx-legend{position:absolute;top:calc(var(--label) + 8px);right:8px;z-index:960;background:rgba(4,7,15,.7);border:1px solid var(--border);padding:5px 7px;pointer-events:none;}
+.wx-leg-title{font-size:7px;color:var(--dim);letter-spacing:1px;margin-bottom:3px;}
+.wx-leg-bar{height:5px;width:90px;background:linear-gradient(90deg,#00c9f5,#00ffaa,#ffd040,#ff5020,#ff00a0);}
+.wx-leg-labels{display:flex;justify-content:space-between;font-size:6px;color:var(--dim);margin-top:2px;}
+
+/* ── Kp / geomag panel ── */
+#kp-wrap{position:absolute;top:calc(var(--label) + 10px);left:10px;z-index:960;background:rgba(4,7,15,.78);border:1px solid var(--border);padding:8px 10px;min-width:140px;}
+.kp-row{display:flex;align-items:baseline;gap:8px;}
+#kp-num{font-family:'Orbitron',sans-serif;font-weight:900;font-size:26px;color:var(--accent2);line-height:1;}
+#kp-status{font-size:9px;letter-spacing:1px;color:var(--accent2);}
+.kp-bars{display:flex;gap:2px;margin-top:7px;}
+.kp-seg{width:9px;height:14px;background:var(--dim2);border:1px solid rgba(0,0,0,.4);}
+#aurora-info{position:absolute;bottom:6px;right:6px;z-index:960;font-size:8px;color:var(--dim);letter-spacing:1px;text-align:right;background:rgba(4,7,15,.7);padding:3px 6px;border:1px solid var(--border);}
+#aur-lat{color:var(--accent2);}
+
+/* ── FOOTER ── */
+#ftr{height:var(--footer);background:#050810;border-top:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 14px;font-size:9px;color:var(--dim);letter-spacing:1.5px;}
+#ftr span{color:var(--accent);font-family:'Orbitron',sans-serif;font-weight:600;}
+#sync-btn{margin-left:auto;background:rgba(0,201,245,.08);border:1px solid var(--border2);color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 9px;cursor:pointer;}
+#sync-btn.on{background:var(--accent);color:#04070f;}
+
+/* ── tooltips ── */
+.ac-tip,.act{background:rgba(4,7,15,.92) !important;border:1px solid var(--border2) !important;color:var(--text) !important;font-family:'Share Tech Mono',monospace !important;font-size:9px !important;border-radius:0 !important;box-shadow:none !important;}
+.ac-tip:before,.act:before{display:none !important;}
+
+/* ── loader ── */
+#loader{position:fixed;inset:0;background:#04070f;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .7s;}
+#loader.fade{opacity:0;}
+.ld-logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:34px;letter-spacing:10px;color:var(--accent);text-shadow:0 0 30px rgba(0,201,245,.5);}
+.ld-logo em{color:var(--accent2);font-style:normal;}
+.ld-track{width:280px;height:3px;background:var(--dim2);overflow:hidden;}
+#ld-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s;}
+#ld-txt{font-size:10px;color:var(--dim);letter-spacing:3px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+
+<!-- ── LOADER ── -->
+<div id="loader">
+  <div class="ld-logo">TERRA<em>NOVA</em></div>
+  <div class="ld-track"><div id="ld-fill"></div></div>
+  <div id="ld-txt">INITIALIZING</div>
+</div>
+
+<!-- ── HEADER ── -->
+<div id="header">
+  <div class="logo">TERRA<em>NOVA</em></div>
+  <div class="subtitle">GEOSPATIAL INTELLIGENCE DISPLAY</div>
+  <div class="hd"></div>
+  <div class="statuses">
+    <div class="stat"><div class="dot off" id="d-adsb"></div><span id="s-adsb">ADS-B: INIT</span></div>
+    <div class="stat"><div class="dot off" id="d-wx"></div><span id="s-wx">DOPPLER: INIT</span></div>
+    <div class="stat"><div class="dot" id="d-sat"></div><span>SAT-IMG: ONLINE</span></div>
+    <div class="stat"><div class="dot off" id="d-geo"></div><span id="s-geo">GEOMAG: INIT</span></div>
+  </div>
+  <div class="hd"></div>
+  <div class="clock" id="clock">--:--:-- UTC</div>
+</div>
+
+<!-- ── 4-PANEL GRID ── -->
+<div id="grid">
+
+  <!-- CH-01 ADS-B -->
+  <div class="mpanel" id="p1">
+    <div class="plabel">
+      <div class="pid">CH-01</div>
+      <div class="pname">ADS-B // Aerial Traffic</div>
+      <div id="adsb-count" class="pstat">— CONTACTS</div>
+      <button class="minibtn" onclick="fetchADSB()">↻ REFRESH</button>
+    </div>
+    <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+    <div class="vignette"></div>
+    <div class="mc" id="map1"></div>
+    <div class="ibadge">AIRPLANES.LIVE // ADS-B</div>
+  </div>
+
+  <!-- CH-02 DOPPLER -->
+  <div class="mpanel" id="p2">
+    <div class="plabel">
+      <div class="pid">CH-02</div>
+      <div class="pname">Doppler // Weather Radar</div>
+      <div id="wx-frame-stat" class="pstat">— UTC</div>
+    </div>
+    <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+    <div class="vignette"></div>
+    <div class="mc" id="map2"></div>
+    <div id="wx-legend">
+      <div class="wx-leg-title">DBZ INTENSITY</div>
+      <div class="wx-leg-bar"></div>
+      <div class="wx-leg-labels"><span>LIGHT</span><span>HEAVY</span></div>
+    </div>
+    <div id="wx-controls">
+      <button class="wxbtn on" id="btn-radar" onclick="setWxMode('radar')">RADAR</button>
+      <button class="wxbtn" id="btn-ir" onclick="setWxMode('ir')">INFRARED</button>
+      <button class="wxbtn" id="btn-anim" onclick="toggleAnimation()">▶ ANIMATE</button>
+      <span id="frm"></span>
+    </div>
+    <div class="ibadge">RAINVIEWER // GLOBAL COMPOSITE</div>
+  </div>
+
+  <!-- CH-03 SATELLITE -->
+  <div class="mpanel" id="p3">
+    <div class="plabel">
+      <div class="pid">CH-03</div>
+      <div class="pname">Satellite // HD Imagery</div>
+    </div>
+    <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+    <div class="vignette"></div>
+    <div class="mc" id="map3"></div>
+    <div class="ibadge">ESRI // WORLD IMAGERY 15CM</div>
+  </div>
+
+  <!-- CH-04 GEOMAGNETIC -->
+  <div class="mpanel" id="p4">
+    <div class="plabel">
+      <div class="pid">CH-04</div>
+      <div class="pname">Geomag // Auroral Activity</div>
+      <div id="geo-stat" class="pstat">Kp —</div>
+    </div>
+    <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+    <div class="vignette"></div>
+    <div class="mc" id="map4"></div>
+    <div id="kp-wrap">
+      <div class="kp-row"><div id="kp-num">—</div><div id="kp-status">INIT</div></div>
+      <div class="kp-bars" id="kp-bar"></div>
+    </div>
+    <div id="aurora-info">AURORAL OVAL // Kp-derived<br><span id="aur-lat">N/S BOUNDARY: —°</span></div>
+    <div class="ibadge">NOAA SWPC // REAL-TIME</div>
+  </div>
+
+</div>
+
+<!-- ── FOOTER ── -->
+<div id="ftr">
+  <span>TERRANOVA v2.2</span>
+  DATA: AIRPLANES.LIVE · RAINVIEWER · ESRI · NOAA SWPC
+  <button id="sync-btn" onclick="toggleSync()">SYNC VIEWS: OFF</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  RESOURCE LOADER + BOOTSTRAP
+// ════════════════════════════════════════════════════════════════
+function ldSet(pct,msg){
+  document.getElementById('ld-fill').style.width=pct+'%';
+  document.getElementById('ld-txt').textContent=msg;
+}
+function loadCSS(href){return new Promise(res=>{const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.onload=res;l.onerror=res;document.head.appendChild(l);});}
+function loadJS(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Load failed: '+src));document.head.appendChild(s);});}
+
+(async function boot(){
+  try{
+    ldSet(10,'LOADING MAP ENGINE CSS...');
+    await loadCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+    ldSet(35,'LOADING MAP ENGINE JS...');
+    await loadJS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+    ldSet(60,'INITIALIZING DISPLAY...');
+    initClock();
+    initMaps();
+    ldSet(80,'CONNECTING DATA FEEDS...');
+    fetchADSB();
+    loadRainviewer();
+    fetchKp();
+    ldSet(100,'ONLINE');
+    setTimeout(()=>{const el=document.getElementById('loader');el.classList.add('fade');setTimeout(()=>el.remove(),700);},350);
+  }catch(e){
+    ldSet(100,'INIT ERROR: '+e.message);
+    console.error(e);
+  }
+})();
+
+// ════════════════════════════════════════════════════════════════
+//  CLOCK
+// ════════════════════════════════════════════════════════════════
+function initClock(){
+  const el=document.getElementById('clock');
+  const p=v=>String(v).padStart(2,'0');
+  function tick(){const n=new Date();el.textContent=`${p(n.getUTCHours())}:${p(n.getUTCMinutes())}:${p(n.getUTCSeconds())} UTC`;}
+  setInterval(tick,1000);tick();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MAPS
+// ════════════════════════════════════════════════════════════════
+let map1,map2,map3,map4;
+const HOME=[35.96,-83.92], HOME_Z=5;   // East Tennessee default view
+
+function darkBase(){return window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:''});}
+function esriImagery(){return window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:''});}
+function esriReference(){return window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,opacity:.8,attribution:''});}
+
+function initMaps(){
+  const opts={zoomControl:false,attributionControl:false,worldCopyJump:true};
+  map1=window.L.map('map1',opts).setView(HOME,7); darkBase().addTo(map1);
+  map2=window.L.map('map2',opts).setView(HOME,HOME_Z); darkBase().addTo(map2);
+  map3=window.L.map('map3',opts).setView(HOME,HOME_Z); esriImagery().addTo(map3); esriReference().addTo(map3);
+  map4=window.L.map('map4',opts).setView([20,0],2);     darkBase().addTo(map4);
+  bindSync();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CH-01  ADS-B  (airplanes.live — open CORS, regional radius)
+// ════════════════════════════════════════════════════════════════
+let acLayer=null, adsbBusy=false;
+const ADSB_CENTER=HOME, ADSB_RADIUS_NM=250;   // adjust to taste (max 250)
+
+function makeAcIcon(hdg,spdKts){
+  const spd=spdKts||0;
+  const col=spd>450?'#00c9f5':spd>200?'#00ffaa':'#6bbbd6';
+  const op=spd>150?0.95:0.65;
+  const h=hdg||0;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
+    <g transform="rotate(${h},9,9)" opacity="${op}">
+      <polygon points="9,1 11.5,8 9,7 6.5,8" fill="${col}"/>
+      <polygon points="6.5,8 4,12 9,10.5 14,12 11.5,8" fill="${col}" opacity=".5"/>
+      <polygon points="7.5,10.5 6,15 9,13 12,15 10.5,10.5" fill="${col}" opacity=".3"/>
+    </g></svg>`;
+  return window.L.divIcon({html:svg,className:'',iconSize:[18,18],iconAnchor:[9,9]});
+}
+
+async function fetchADSB(){
+  if(adsbBusy||!map1) return;
+  adsbBusy=true;
+  setStat('adsb','amb','ADS-B: FETCHING...');
+  try{
+    const url=`https://api.airplanes.live/v2/point/${ADSB_CENTER[0]}/${ADSB_CENTER[1]}/${ADSB_RADIUS_NM}`;
+    const r=await fetch(url,{signal:AbortSignal.timeout(14000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const list=data.ac||data.aircraft||[];
+    if(!acLayer) acLayer=window.L.layerGroup().addTo(map1);
+    else acLayer.clearLayers();
+    let n=0;
+    list.forEach(a=>{
+      const lat=a.lat, lon=a.lon;
+      if(lat==null||lon==null||a.alt_baro==='ground') return;
+      const cs=(a.flight||a.r||a.hex||'???').trim();
+      const hdg=a.track ?? a.true_heading ?? 0;
+      const spd=Math.round(a.gs||0);                          // ground speed, knots
+      const alt=(typeof a.alt_baro==='number')?a.alt_baro:null; // feet
+      const m=window.L.marker([lat,lon],{icon:makeAcIcon(hdg,spd)});
+      m.bindTooltip(`<b>${cs}</b><br>${alt!=null?`ALT: ${alt.toLocaleString()} ft<br>`:''}${spd?`SPD: ${spd} kts<br>`:''}${hdg?`HDG: ${Math.round(hdg)}°`:''}`,{className:'ac-tip',direction:'top',offset:[0,-6]});
+      acLayer.addLayer(m); n++;
+    });
+    document.getElementById('adsb-count').textContent=`${n.toLocaleString()} CONTACTS`;
+    setStat('adsb','grn',`ADS-B: ${n.toLocaleString()} TARGETS`);
+  }catch(e){
+    setStat('adsb','red','ADS-B: UNAVAILABLE');
+    document.getElementById('adsb-count').textContent='FEED UNAVAILABLE — RETRY 30s';
+  }finally{ adsbBusy=false; }
+}
+setInterval(()=>{ if(map1) fetchADSB(); },30000);
+
+// ════════════════════════════════════════════════════════════════
+//  CH-02  DOPPLER  (RainViewer)
+// ════════════════════════════════════════════════════════════════
+let rvHost='https://tilecache.rainviewer.com';
+let rfr=[], ifi=[], wxLyr=null;
+let animTmr=null, animIdx=0, animOn=false, wxMode='radar';
+
+async function loadRainviewer(){
+  setStat('wx','amb','DOPPLER: LOADING...');
+  try{
+    const r=await fetch('https://api.rainviewer.com/public/weather-maps.json',{signal:AbortSignal.timeout(14000)});
+    const d=await r.json();
+    rvHost=d.host||rvHost;
+    rfr=[...(d.radar?.past||[]),...(d.radar?.nowcast||[])];
+    ifi=[...(d.satellite?.infrared||[])];
+    if(rfr.length){ showFrame(rfr.length-1); setStat('wx','grn','DOPPLER: LIVE'); }
+    else setStat('wx','red','DOPPLER: NO FRAMES');
+    // RainViewer's free tier serves IR intermittently — reflect real availability.
+    const irBtn=document.getElementById('btn-ir');
+    irBtn.style.opacity=ifi.length?'1':'.35';
+    irBtn.title=ifi.length?'':'No infrared frames currently published';
+  }catch(e){ setStat('wx','red','DOPPLER: UNAVAILABLE'); }
+}
+
+function frameURL(f){
+  // color scheme 2, smooth=1, snow=1
+  const opts = wxMode==='radar' ? '256/{z}/{x}/{y}/2/1_1.png' : '256/{z}/{x}/{y}/0/0_0.png';
+  return `${rvHost}${f.path}/${opts}`;
+}
+
+function showFrame(idx){
+  if(!map2) return;
+  const frames = wxMode==='radar' ? rfr : ifi;
+  if(!frames.length) return;
+  idx=((idx%frames.length)+frames.length)%frames.length;
+  const f=frames[idx];
+  if(wxLyr) map2.removeLayer(wxLyr);
+  wxLyr=window.L.tileLayer(frameURL(f),{opacity:.75,maxZoom:18,attribution:''}).addTo(map2);
+  const t=new Date(f.time*1000);
+  const p=v=>String(v).padStart(2,'0');
+  document.getElementById('wx-frame-stat').textContent=`${p(t.getUTCHours())}:${p(t.getUTCMinutes())} UTC`;
+}
+
+function setWxMode(mode){
+  if(mode==='ir' && !ifi.length){ document.getElementById('frm').textContent='NO IR DATA'; return; }
+  wxMode=mode;
+  document.getElementById('btn-radar').className=mode==='radar'?'wxbtn on':'wxbtn';
+  document.getElementById('btn-ir').className=mode==='ir'?'wxbtn on':'wxbtn';
+  stopAnim();
+  const fr=mode==='radar'?rfr:ifi;
+  if(fr.length) showFrame(fr.length-1);
+}
+
+function stopAnim(){
+  if(animTmr){ clearInterval(animTmr); animTmr=null; }
+  animOn=false;
+  document.getElementById('btn-anim').textContent='▶ ANIMATE';
+  document.getElementById('frm').textContent='';
+}
+
+function toggleAnimation(){
+  const fr=wxMode==='radar'?rfr:ifi;
+  if(!fr.length) return;
+  if(animOn){ stopAnim(); showFrame(fr.length-1); return; }
+  animOn=true; animIdx=0;
+  document.getElementById('btn-anim').textContent='■ STOP';
+  animTmr=setInterval(()=>{
+    showFrame(animIdx);
+    document.getElementById('frm').textContent=`${animIdx+1}/${fr.length}`;
+    animIdx=(animIdx+1)%fr.length;
+  },600);
+}
+setInterval(()=>{ if(map2 && !animOn) loadRainviewer(); },300000);
+
+// ════════════════════════════════════════════════════════════════
+//  CH-04  GEOMAGNETIC  (NOAA SWPC)
+// ════════════════════════════════════════════════════════════════
+const KP_COL=['#00ffaa','#00ffaa','#00c9f5','#00c9f5','#ffd040','#ff9030','#ff5020','#ff2020','#ff00a0','#cc00ff'];
+let aN=null,aS=null,rN=null,rS=null;
+
+function kpDesc(k){
+  if(k<2) return{t:'QUIET',c:'#00ffaa'};
+  if(k<4) return{t:'UNSETTLED',c:'#00c9f5'};
+  if(k<5) return{t:'ACTIVE',c:'#ffd040'};
+  if(k<6) return{t:'MINOR STORM G1',c:'#ff9030'};
+  if(k<7) return{t:'MOD STORM G2',c:'#ff5020'};
+  if(k<8) return{t:'STRONG STORM G3',c:'#ff2020'};
+  if(k<9) return{t:'SEVERE STORM G4',c:'#ff00a0'};
+  return{t:'EXTREME STORM G5',c:'#cc00ff'};
+}
+
+function renderKp(kp){
+  const d=kpDesc(kp);
+  document.getElementById('kp-num').textContent=kp.toFixed(1);
+  document.getElementById('kp-num').style.color=d.c;
+  const st=document.getElementById('kp-status');
+  st.textContent=d.t; st.style.color=d.c;
+  document.getElementById('geo-stat').textContent=`Kp ${kp.toFixed(1)}`;
+  const bar=document.getElementById('kp-bar'); bar.innerHTML='';
+  const filled=Math.round(kp);
+  for(let i=0;i<10;i++){
+    const seg=document.createElement('div');
+    seg.className='kp-seg';
+    if(i<filled) seg.style.background=KP_COL[i];
+    bar.appendChild(seg);
+  }
+}
+
+function drawOval(kp){
+  if(!map4) return;
+  [aN,aS,rN,rS].forEach(l=>{ if(l) map4.removeLayer(l); });
+  const lat=Math.max(50,67-kp*1.9), rad=(90-lat)*111.32*1000;
+  const col=kpDesc(kp).c;
+  const fO={color:col,fillColor:col,fillOpacity:.10,weight:1,opacity:0};
+  const rO={color:col,fillColor:'transparent',weight:1.5,opacity:.6,dashArray:'5 4'};
+  aN=window.L.circle([90,0],{...fO,radius:rad}).addTo(map4);
+  aS=window.L.circle([-90,0],{...fO,radius:rad}).addTo(map4);
+  rN=window.L.circle([90,0],{...rO,radius:rad}).addTo(map4);
+  rS=window.L.circle([-90,0],{...rO,radius:rad}).addTo(map4);
+  const tip=hem=>`<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#6bbbd6">${hem} AURORAL OVAL<br>Eq boundary ~${Math.round(lat)}°<br>Kp ${kp.toFixed(1)}</div>`;
+  rN.bindTooltip(tip('N'),{className:'act'});
+  rS.bindTooltip(tip('S'),{className:'act'});
+  document.getElementById('aur-lat').textContent=`N/S BOUNDARY: ~${Math.round(lat)}°`;
+}
+
+async function fetchKp(){
+  setStat('geo','amb','GEOMAG: FETCHING...');
+  try{
+    const r=await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json',{signal:AbortSignal.timeout(14000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const last=data[data.length-1];
+    let kp;
+    if(Array.isArray(last)) kp=parseFloat(last[1]);                       // array-of-arrays form
+    else kp=parseFloat(last.Kp ?? last.kp_index ?? last.estimated_kp);    // array-of-objects form
+    if(!isFinite(kp)) throw new Error('parse');
+    renderKp(kp);
+    drawOval(kp);
+    setStat('geo', kp<4?'grn':kp<5?'amb':'red', `GEOMAG: Kp ${kp.toFixed(1)}`);
+  }catch(e){
+    setStat('geo','red','GEOMAG: UNAVAILABLE');
+    document.getElementById('kp-num').textContent='—';
+    document.getElementById('kp-status').textContent='DATA UNAVAILABLE';
+  }
+}
+setInterval(fetchKp,300000);
+
+// ════════════════════════════════════════════════════════════════
+//  VIEW SYNC
+// ════════════════════════════════════════════════════════════════
+let syncOn=false;
+function bindSync(){
+  [map1,map2,map3,map4].forEach(m=>{
+    m.on('moveend zoomend',()=>{
+      if(!syncOn||m._syncing) return;
+      const c=m.getCenter(), z=m.getZoom();
+      [map1,map2,map3,map4].forEach(o=>{ if(o!==m){ o._syncing=true; o.setView(c,z,{animate:false}); o._syncing=false; } });
+    });
+  });
+}
+function toggleSync(){
+  syncOn=!syncOn;
+  const btn=document.getElementById('sync-btn');
+  btn.textContent=`SYNC VIEWS: ${syncOn?'ON':'OFF'}`;
+  btn.className=syncOn?'on':'';
+  if(syncOn){ const c=map1.getCenter(), z=map1.getZoom(); [map2,map3,map4].forEach(m=>m.setView(c,z,{animate:false})); }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  STATUS UTILITY
+// ════════════════════════════════════════════════════════════════
+function setStat(ch,level,text){
+  const sMap={adsb:'s-adsb',wx:'s-wx',geo:'s-geo'};
+  const dMap={adsb:'d-adsb',wx:'d-wx',geo:'d-geo'};
+  if(sMap[ch]) document.getElementById(sMap[ch]).textContent=text;
+  if(dMap[ch]){
+    const cls=level==='grn'?'dot':level==='amb'?'dot amber':level==='red'?'dot red':'dot off';
+    document.getElementById(dMap[ch]).className=cls;
+  }
+}
+</script>
+</body>
+</html>
